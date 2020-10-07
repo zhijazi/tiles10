@@ -8,17 +8,20 @@ pub fn run() -> Result<i32, std::io::Error> {
 }
 
 fn get_initial_windows() -> Vec<windef::HWND> {
+    let win_handles: Vec<windef::HWND> = Vec::new();
     unsafe {
-        let res = winuser::EnumWindows(Some(enum_windows), 0isize);
+        let res = winuser::EnumWindows(Some(enum_windows), &win_handles as *const _ as minwindef::LPARAM);
         if res == minwindef::FALSE {
             // TODO consider not failing in future, instead just continue
             panic!("Could not retrieve windows");
         }
     }
+    println!("{}", win_handles.len());
     vec!()
 }
 
-unsafe extern "system" fn enum_windows(hwnd: windef::HWND, _: minwindef::LPARAM) -> minwindef::BOOL {
+unsafe extern "system"
+fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BOOL {
     let win_title_len = winuser::GetWindowTextLengthW(hwnd) + 1;
     let mut win_title_vec: Vec<u16> = Vec::with_capacity(win_title_len as usize);
     let res_len = winuser::GetWindowTextW(hwnd, win_title_vec.as_mut_ptr(), win_title_len);
@@ -40,6 +43,9 @@ unsafe extern "system" fn enum_windows(hwnd: windef::HWND, _: minwindef::LPARAM)
             let window_name = String::from_utf16_lossy(&win_title_vec);
             if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") {
                 println!("{}", window_name);
+                let handles_ptr = l_param as *mut Vec<windef::HWND>;
+                let handles: &mut Vec<windef::HWND> = &mut *handles_ptr;
+                handles.push(hwnd);
             }
         }
     }
