@@ -55,7 +55,11 @@ fn get_window_dimensions() -> WindowDimensions {
 fn set_window_pos(hwnd: windef::HWND, x: i32, y: i32, cx: i32, cy: i32) -> bool {
     let set_pos_res: minwindef::BOOL;
     unsafe {
-        set_pos_res = winuser::SetWindowPos(hwnd, winuser::HWND_TOPMOST, x, y, cx, cy, winuser::SWP_ASYNCWINDOWPOS);
+        set_pos_res = winuser::SetWindowPos(hwnd, winuser::HWND_TOPMOST, x, y, cx, cy, 0u32);
+    }
+
+    if set_pos_res == minwindef::FALSE {
+        false
     }
 
     true
@@ -89,7 +93,7 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
         if cloaked != dwmapi::DWM_CLOAKED_SHELL && cloaked != dwmapi::DWM_CLOAKED_APP && cloaked != dwmapi::DWM_CLOAKED_INHERITED {
             win_title_vec.set_len((res_len) as usize);
             let window_name = String::from_utf16_lossy(&win_title_vec);
-            if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") {
+            if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") && !window_name.contains("Windows PowerShell") {
                 println!("{}", window_name);
                 let handles_ptr = l_param as *mut Vec<windef::HWND>;
                 let handles: &mut Vec<windef::HWND> = &mut *handles_ptr;
