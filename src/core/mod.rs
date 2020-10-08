@@ -59,7 +59,7 @@ fn set_window_pos(hwnd: windef::HWND, x: i32, y: i32, cx: i32, cy: i32) -> bool 
     }
 
     if set_pos_res == minwindef::FALSE {
-        false
+        return false;
     }
 
     true
