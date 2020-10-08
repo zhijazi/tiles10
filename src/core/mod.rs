@@ -9,9 +9,9 @@ struct WindowDimensions {
 
 pub fn run() -> Result<i32, std::io::Error> {
     let open_windows = get_initial_windows();
-    println!("{}", open_windows.len());
     let win_dimensions = get_window_dimensions();
-    println!("x: ({}, {}), y: ({}, {})", win_dimensions.x.0, win_dimensions.x.1, win_dimensions.y.0, win_dimensions.y.1);
+    set_window_pos(open_windows[0], win_dimensions.x.0, win_dimensions.y.0,
+        win_dimensions.x.1, win_dimensions.y.1);
     Ok(0)
 }
 
@@ -52,6 +52,16 @@ fn get_window_dimensions() -> WindowDimensions {
     }
 }
 
+fn set_window_pos(hwnd: windef::HWND, x: i32, y: i32, cx: i32, cy: i32) -> bool {
+    let set_pos_res: minwindef::BOOL;
+    unsafe {
+        set_pos_res = winuser::SetWindowPos(hwnd, winuser::HWND_TOPMOST, x, y, cx, cy, winuser::SWP_ASYNCWINDOWPOS);
+    }
+
+    true
+}
+
+// TODO does this need to be a separate function?
 unsafe extern "system"
 fn get_primary_monitor() -> windef::HMONITOR {
     let point = windef::POINT { x:0, y:0 };
