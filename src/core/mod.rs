@@ -2,8 +2,16 @@ extern crate winapi;
 
 use winapi::{ um::{winuser, dwmapi}, shared::{windef, minwindef, winerror}, ctypes };
 
+struct WindowDimensions {
+    x: (i32, i32),
+    y: (i32, i32)
+}
+
 pub fn run() -> Result<i32, std::io::Error> {
-    get_initial_windows();
+    let open_windows = get_initial_windows();
+    println!("{}", open_windows.len());
+    let win_dimensions = get_window_dimensions();
+    println!("x: ({}, {}), y: ({}, {})", win_dimensions.x.0, win_dimensions.x.1, win_dimensions.y.0, win_dimensions.y.1);
     Ok(0)
 }
 
@@ -16,8 +24,38 @@ fn get_initial_windows() -> Vec<windef::HWND> {
             panic!("Could not retrieve windows");
         }
     }
-    println!("{}", win_handles.len());
-    vec!()
+    win_handles
+}
+
+fn get_window_dimensions() -> WindowDimensions {
+    let monitor: windef::HMONITOR;
+    unsafe {
+        monitor = get_primary_monitor();
+    }
+    let mut monitor_info = winuser::MONITORINFO {
+        cbSize: std::mem::size_of::<winuser::MONITORINFO>() as _,
+        ..Default::default()
+    };
+
+    let monitor_info_res: minwindef::BOOL;
+    unsafe {
+        monitor_info_res = winuser::GetMonitorInfoW(monitor, &mut monitor_info);
+    }
+
+    if monitor_info_res == minwindef::FALSE {
+        panic!("Could not retrieve monitor information.");
+    }
+
+    WindowDimensions {
+        x: (monitor_info.rcMonitor.left, monitor_info.rcMonitor.right),
+        y: (monitor_info.rcMonitor.top, monitor_info.rcMonitor.bottom)
+    }
+}
+
+unsafe extern "system"
+fn get_primary_monitor() -> windef::HMONITOR {
+    let point = windef::POINT { x:0, y:0 };
+    winuser::MonitorFromPoint(point, winuser::MONITOR_DEFAULTTOPRIMARY)
 }
 
 unsafe extern "system"
@@ -49,6 +87,5 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
             }
         }
     }
-
-    return minwindef::TRUE;
+    minwindef::TRUE
 }
