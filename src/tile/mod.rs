@@ -1,4 +1,4 @@
-use crate::core::Dimensions;
+use crate::core;
 
 enum NodeType {
     Horizontal,
@@ -20,8 +20,8 @@ pub fn tile_vertical(dim: core::Dimensions) -> (core::Dimensions, core::Dimensio
     };
     let right_dim = core::Dimensions {
         x: (dim.x.0 + dim.x.1 / 2, dim.x.1 / 2),
-        y: (dim.y0, dim.y.1)
-    }
+        y: (dim.y.0, dim.y.1)
+    };
     (left_dim, right_dim)
 }
 

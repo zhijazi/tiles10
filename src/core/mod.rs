@@ -3,8 +3,8 @@ extern crate winapi;
 use winapi::{ um::{winuser, dwmapi}, shared::{windef, minwindef, winerror}, ctypes };
 
 pub struct Dimensions {
-    x: (i32, i32),
-    y: (i32, i32)
+    pub x: (i32, i32),
+    pub y: (i32, i32)
 }
 
 struct Window {
