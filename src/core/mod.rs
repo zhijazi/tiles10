@@ -2,9 +2,14 @@ extern crate winapi;
 
 use winapi::{ um::{winuser, dwmapi}, shared::{windef, minwindef, winerror}, ctypes };
 
-struct WindowDimensions {
+pub struct Dimensions {
     x: (i32, i32),
     y: (i32, i32)
+}
+
+struct Window {
+    hwnd: windef::HWND,
+    dim: Dimensions
 }
 
 pub fn run() -> Result<i32, std::io::Error> {
@@ -27,7 +32,7 @@ fn get_initial_windows() -> Vec<windef::HWND> {
     win_handles
 }
 
-fn get_window_dimensions() -> WindowDimensions {
+fn get_window_dimensions() -> Dimensions {
     let monitor: windef::HMONITOR;
     unsafe {
         monitor = get_primary_monitor();
@@ -46,7 +51,7 @@ fn get_window_dimensions() -> WindowDimensions {
         panic!("Could not retrieve monitor information.");
     }
 
-    WindowDimensions {
+    Dimensions {
         x: (monitor_info.rcMonitor.left, monitor_info.rcMonitor.right),
         y: (monitor_info.rcMonitor.top, monitor_info.rcMonitor.bottom)
     }
