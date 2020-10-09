@@ -55,7 +55,9 @@ fn get_window_dimensions() -> WindowDimensions {
 fn set_window_pos(hwnd: windef::HWND, x: i32, y: i32, cx: i32, cy: i32) -> bool {
     let set_pos_res: minwindef::BOOL;
     unsafe {
-        set_pos_res = winuser::SetWindowPos(hwnd, winuser::HWND_TOPMOST, x, y, cx, cy, 0u32);
+        // TODO Removed HWND_TOPMOST during development... evaluate if it we want window
+        // to actually be TOPMOST, since it could be annoying once the WM is closed
+        set_pos_res = winuser::SetWindowPos(hwnd, winuser::HWND_TOP, x, y, cx, cy, 0u32);
     }
 
     if set_pos_res == minwindef::FALSE {
