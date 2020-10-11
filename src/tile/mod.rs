@@ -1,58 +1,72 @@
-use crate::core;
-
-enum NodeType {
+#[derive(Clone)]
+pub enum Orientation {
     Horizontal,
-    Vertical,
-    Window(Node)
+    Vertical
 }
 
-struct Node {
-    node_type: Box<NodeType>,
-    left: Box<NodeType>,
-    right: Box<NodeType>
+#[derive(Clone)]
+pub enum NodeType<T> {
+    Separator(Orientation),
+    Window(T)
 }
 
+#[derive(Clone)]
+pub struct Node<T: std::clone::Clone> {
+    pub node_type: NodeType<T>,
+    pub dim: Dimensions,
+    pub left: Box<Option<Node<T>>>,
+    pub right: Box<Option<Node<T>>>
+}
 
-pub fn tile_vertical(dim: core::Dimensions) -> (core::Dimensions, core::Dimensions) {
-    let left_dim = core::Dimensions {
+#[derive(Clone)]
+pub struct Dimensions {
+    pub x: (i32, i32),
+    pub y: (i32, i32)
+}
+
+pub fn tile_vertical(dim: &Dimensions) -> (Dimensions, Dimensions) {
+    let left_dim = Dimensions {
         x: (dim.x.0, dim.x.1 / 2),
         y: (dim.y.0, dim.y.1)
     };
-    let right_dim = core::Dimensions {
+    let right_dim = Dimensions {
         x: (dim.x.0 + dim.x.1 / 2, dim.x.1 / 2),
         y: (dim.y.0, dim.y.1)
     };
     (left_dim, right_dim)
 }
 
-pub fn tile_horizontal(dim: core::Dimensions) -> (core::Dimensions, core::Dimensions) {
-    let top_dim = core::Dimensions {
+pub fn tile_horizontal(dim: &Dimensions) -> (Dimensions, Dimensions) {
+    let top_dim = Dimensions {
         x: (dim.x.0, dim.x.1),
         y: (dim.y.0, dim.y.1 / 2)
     };
-    let bottom_dim = core::Dimensions {
+    let bottom_dim = Dimensions {
         x: (dim.x.0, dim.x.1),
         y: (dim.y.0 + dim.y.1 / 2, dim.y.1 / 2)
     };
     (top_dim, bottom_dim)
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn tile_vertical_success_split_x_even() {
-        let dim = core::Dimensions {
-            x: (0, 1920),
-            y: (0, 1080)
-        };
+pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, new_window: T) {
+    let (left_dim, right_dim) = match &orientation {
+        Orientation::Horizontal => tile_horizontal(&root.dim),
+        Orientation::Vertical => tile_vertical(&root.dim)
+    };
 
-        let (left, right) = tile_vertical(dim);
+    // clone current and set it to left
+    let mut tmp = root.clone();
+    tmp.dim = left_dim;
 
-        // TODO impl Eq on Dimension to make comparisons easier
-        assert_eq!(left.x.0, 0);
-        assert_eq!(left.x.1, 960);
-        assert_eq!(right.x.0, 960);
-        assert_eq!(right.x.1, 960);
-    }
+    let new_win = Node {
+        node_type: NodeType::Window(new_window),
+        dim: right_dim,
+        left: Box::new(None),
+        right: Box::new(None)
+    };
 
+    root.node_type = NodeType::Separator(orientation);
+    root.left = Box::new(Some(tmp));
+    root.right = Box::new(Some(new_win));
 }
+

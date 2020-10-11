@@ -1,23 +1,42 @@
 extern crate winapi;
 
 use winapi::{ um::{winuser, dwmapi}, shared::{windef, minwindef, winerror}, ctypes };
+use crate::tile;
 
-pub struct Dimensions {
-    pub x: (i32, i32),
-    pub y: (i32, i32)
-}
-
-struct Window {
-    hwnd: windef::HWND,
-    dim: Dimensions
+#[derive(Clone)]
+pub struct Window {
+    hwnd: windef::HWND
 }
 
 pub fn run() -> Result<i32, std::io::Error> {
-    let open_windows = get_initial_windows();
+    let mut open_windows = get_initial_windows();
     let win_dimensions = get_window_dimensions();
-    set_window_pos(open_windows[0], win_dimensions.x.0, win_dimensions.y.0,
-        win_dimensions.x.1, win_dimensions.y.1);
+    //set_window_pos(open_windows[0], win_dimensions.x.0, win_dimensions.y.0,
+     //   win_dimensions.x.1, win_dimensions.y.1);
+
+    // generate initial windows. TODO move initial generation into self-contained
+    // function
     Ok(0)
+}
+
+fn resize_children(root: tile::Node<Window>) {
+    // do a match (root.Nodetype) here and check:
+    // if horizontal -> split horizontal and propgate down
+    // if vertical -> split vertical and propogate down
+    // if window -> resize to new dimensions and stop
+}
+
+fn redraw_nodes(root: tile::Node<Window>) {
+    match root.node_type {
+        tile::NodeType::Separator(_) => {
+            redraw_nodes(root.left.unwrap());
+            redraw_nodes(root.right.unwrap());
+        },
+        tile::NodeType::Window(win) => {
+            set_window_pos(win.hwnd, root.dim.x.0, root.dim.y.0,
+                root.dim.x.1, root.dim.y.1);
+        }
+    }
 }
 
 fn get_initial_windows() -> Vec<windef::HWND> {
@@ -32,7 +51,7 @@ fn get_initial_windows() -> Vec<windef::HWND> {
     win_handles
 }
 
-fn get_window_dimensions() -> Dimensions {
+fn get_window_dimensions() -> tile::Dimensions {
     let monitor: windef::HMONITOR;
     unsafe {
         monitor = get_primary_monitor();
@@ -51,7 +70,7 @@ fn get_window_dimensions() -> Dimensions {
         panic!("Could not retrieve monitor information.");
     }
 
-    Dimensions {
+    tile::Dimensions {
         x: (monitor_info.rcMonitor.left, monitor_info.rcMonitor.right),
         y: (monitor_info.rcMonitor.top, monitor_info.rcMonitor.bottom)
     }
