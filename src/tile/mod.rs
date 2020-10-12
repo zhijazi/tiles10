@@ -7,6 +7,7 @@ pub enum Orientation {
 #[derive(Clone)]
 pub enum NodeType<T> {
     Separator(Orientation),
+    Empty,
     Window(T)
 }
 
@@ -49,6 +50,11 @@ pub fn tile_horizontal(dim: &Dimensions) -> (Dimensions, Dimensions) {
 }
 
 pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, new_window: T) {
+    if let NodeType::Empty =  root.node_type {
+        root.node_type = NodeType::Window(new_window);
+        return;
+    }
+
     let (left_dim, right_dim) = match &orientation {
         Orientation::Horizontal => tile_horizontal(&root.dim),
         Orientation::Vertical => tile_vertical(&root.dim)

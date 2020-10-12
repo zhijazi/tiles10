@@ -9,8 +9,11 @@ pub struct Window {
 }
 
 pub fn run() -> Result<i32, std::io::Error> {
-    let mut open_windows = get_initial_windows();
+    let open_windows = get_initial_windows();
     let win_dimensions = get_window_dimensions();
+
+    let root = tile_existing_windows(open_windows, win_dimensions);
+    redraw_nodes(&root);
     //set_window_pos(open_windows[0], win_dimensions.x.0, win_dimensions.y.0,
      //   win_dimensions.x.1, win_dimensions.y.1);
 
@@ -19,28 +22,41 @@ pub fn run() -> Result<i32, std::io::Error> {
     Ok(0)
 }
 
-fn resize_children(root: tile::Node<Window>) {
-    // do a match (root.Nodetype) here and check:
-    // if horizontal -> split horizontal and propgate down
-    // if vertical -> split vertical and propogate down
-    // if window -> resize to new dimensions and stop
+fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> tile::Node<Window> {
+    let mut root: tile::Node<Window> = tile::Node {
+        node_type: tile::NodeType::Empty,
+        dim: dim,
+        left: Box::new(None),
+        right: Box::new(None)
+    };
+
+    while !windows.is_empty() {
+        tile::tile::<Window>(&mut root, tile::Orientation::Vertical, windows.remove(0));
+    }
+
+    root
 }
 
-fn redraw_nodes(root: tile::Node<Window>) {
-    match root.node_type {
+fn redraw_nodes(root: &tile::Node<Window>) {
+    match &root.node_type {
         tile::NodeType::Separator(_) => {
-            redraw_nodes(root.left.unwrap());
-            redraw_nodes(root.right.unwrap());
+            if let Some(win) = root.left.as_ref() {
+                redraw_nodes(win);
+            }
+            if let Some(win) = root.right.as_ref() {
+                redraw_nodes(win);
+            }
         },
         tile::NodeType::Window(win) => {
             set_window_pos(win.hwnd, root.dim.x.0, root.dim.y.0,
                 root.dim.x.1, root.dim.y.1);
-        }
+        },
+        tile::NodeType::Empty => return
     }
 }
 
-fn get_initial_windows() -> Vec<windef::HWND> {
-    let win_handles: Vec<windef::HWND> = Vec::new();
+fn get_initial_windows() -> Vec<Window> {
+    let win_handles: Vec<Window> = Vec::new();
     unsafe {
         let res = winuser::EnumWindows(Some(enum_windows), &win_handles as *const _ as minwindef::LPARAM);
         if res == minwindef::FALSE {
@@ -121,9 +137,9 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
             let window_name = String::from_utf16_lossy(&win_title_vec);
             if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") && !window_name.contains("Windows PowerShell") {
                 println!("{}", window_name);
-                let handles_ptr = l_param as *mut Vec<windef::HWND>;
-                let handles: &mut Vec<windef::HWND> = &mut *handles_ptr;
-                handles.push(hwnd);
+                let handles_ptr = l_param as *mut Vec<Window>;
+                let handles: &mut Vec<Window> = &mut *handles_ptr;
+                handles.push(Window { hwnd });
             }
         }
     }
