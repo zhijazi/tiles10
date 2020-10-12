@@ -1,17 +1,18 @@
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Orientation {
     Horizontal,
     Vertical
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum NodeType<T> {
     Separator(Orientation),
     Empty,
     Window(T)
 }
 
-#[derive(Clone)]
+// TODO: Arbitrary number of children?
+#[derive(Debug, Clone)]
 pub struct Node<T: std::clone::Clone> {
     pub node_type: NodeType<T>,
     pub dim: Dimensions,
@@ -19,7 +20,7 @@ pub struct Node<T: std::clone::Clone> {
     pub right: Box<Option<Node<T>>>
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Dimensions {
     pub x: (i32, i32),
     pub y: (i32, i32)
@@ -74,5 +75,36 @@ pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, 
     root.node_type = NodeType::Separator(orientation);
     root.left = Box::new(Some(tmp));
     root.right = Box::new(Some(new_win));
+
+    if let Some(node) = root.left.as_ref() {
+        resize_children(root.left.as_mut().as_mut().unwrap());
+    }
+
+    if let Some(node) = root.right.as_ref() {
+        resize_children(root.right.as_mut().as_mut().unwrap());
+    }
 }
 
+fn resize_children<T: std::clone::Clone>(root: &mut Node<T>) {
+    match root.node_type {
+        NodeType::Separator(Orientation::Horizontal) => {
+            let (left, right) = tile_horizontal(&root.dim);
+            root.left.as_mut().as_mut().unwrap().dim = left;
+            root.right.as_mut().as_mut().unwrap().dim = right;
+        },
+        NodeType::Separator(Orientation::Vertical) => {
+            let (left, right) = tile_vertical(&root.dim);
+            root.left.as_mut().as_mut().unwrap().dim = left;
+            root.right.as_mut().as_mut().unwrap().dim = right;
+        }
+        _ => return
+    }
+
+    if let Some(node) = root.left.as_ref() {
+          resize_children::<T>(root.left.as_mut().as_mut().unwrap());
+    }
+
+    if let Some(node) = root.right.as_ref() {
+          resize_children::<T>(root.right.as_mut().as_mut().unwrap());
+    }
+}

@@ -3,7 +3,7 @@ extern crate winapi;
 use winapi::{ um::{winuser, dwmapi}, shared::{windef, minwindef, winerror}, ctypes };
 use crate::tile;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Window {
     hwnd: windef::HWND
 }
@@ -13,6 +13,7 @@ pub fn run() -> Result<i32, std::io::Error> {
     let win_dimensions = get_window_dimensions();
 
     let root = tile_existing_windows(open_windows, win_dimensions);
+    //println!("{:?}", root);
     redraw_nodes(&root);
     //set_window_pos(open_windows[0], win_dimensions.x.0, win_dimensions.y.0,
      //   win_dimensions.x.1, win_dimensions.y.1);
@@ -31,7 +32,7 @@ fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> til
     };
 
     while !windows.is_empty() {
-        tile::tile::<Window>(&mut root, tile::Orientation::Vertical, windows.remove(0));
+        tile::tile::<Window>(&mut root, tile::Orientation::Horizontal, windows.remove(0));
     }
 
     root
