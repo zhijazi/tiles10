@@ -27,8 +27,8 @@ fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> til
     let mut root: tile::Node<Window> = tile::Node {
         node_type: tile::NodeType::Empty,
         dim: dim,
-        left: Box::new(None),
-        right: Box::new(None)
+        left: None,
+        right: None
     };
 
     while !windows.is_empty() {

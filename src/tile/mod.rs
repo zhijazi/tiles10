@@ -16,8 +16,8 @@ pub enum NodeType<T> {
 pub struct Node<T: std::clone::Clone> {
     pub node_type: NodeType<T>,
     pub dim: Dimensions,
-    pub left: Box<Option<Node<T>>>,
-    pub right: Box<Option<Node<T>>>
+    pub left: Option<Box<Node<T>>>,
+    pub right: Option<Box<Node<T>>>
 }
 
 #[derive(Debug, Clone)]
@@ -68,20 +68,20 @@ pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, 
     let new_win = Node {
         node_type: NodeType::Window(new_window),
         dim: right_dim,
-        left: Box::new(None),
-        right: Box::new(None)
+        left: None,
+        right: None
     };
 
     root.node_type = NodeType::Separator(orientation);
-    root.left = Box::new(Some(tmp));
-    root.right = Box::new(Some(new_win));
+    root.left = Some(Box::new(tmp));
+    root.right = Some(Box::new(new_win));
 
-    if let Some(node) = root.left.as_ref() {
-        resize_children(root.left.as_mut().as_mut().unwrap());
+    if let Some(left_child) = &mut root.left {
+        resize_children(left_child);
     }
 
-    if let Some(node) = root.right.as_ref() {
-        resize_children(root.right.as_mut().as_mut().unwrap());
+    if let Some(right_child) = &mut root.right {
+        resize_children(right_child);
     }
 }
 
@@ -89,22 +89,32 @@ fn resize_children<T: std::clone::Clone>(root: &mut Node<T>) {
     match root.node_type {
         NodeType::Separator(Orientation::Horizontal) => {
             let (left, right) = tile_horizontal(&root.dim);
-            root.left.as_mut().as_mut().unwrap().dim = left;
-            root.right.as_mut().as_mut().unwrap().dim = right;
+
+            if let Some(left_win) = &mut root.left {
+                left_win.dim = left;
+            }
+            if let Some(right_win) = &mut root.right {
+                right_win.dim = right;
+            }
         },
         NodeType::Separator(Orientation::Vertical) => {
             let (left, right) = tile_vertical(&root.dim);
-            root.left.as_mut().as_mut().unwrap().dim = left;
-            root.right.as_mut().as_mut().unwrap().dim = right;
+            if let Some(left_win) = &mut root.left {
+                left_win.dim = left;
+            }
+
+            if let Some(right_win) = &mut root.right {
+                right_win.dim = right;
+            }
         }
         _ => return
     }
 
-    if let Some(node) = root.left.as_ref() {
-          resize_children::<T>(root.left.as_mut().as_mut().unwrap());
+    if let Some(left_node) = &mut root.left {
+          resize_children::<T>(left_node);
     }
 
-    if let Some(node) = root.right.as_ref() {
-          resize_children::<T>(root.right.as_mut().as_mut().unwrap());
+    if let Some(right_node) = &mut root.right {
+          resize_children::<T>(right_node);
     }
 }
