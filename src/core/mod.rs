@@ -13,13 +13,10 @@ pub fn run() -> Result<i32, std::io::Error> {
     let win_dimensions = get_window_dimensions();
 
     let root = tile_existing_windows(open_windows, win_dimensions);
-    //println!("{:?}", root);
     redraw_nodes(&root);
-    //set_window_pos(open_windows[0], win_dimensions.x.0, win_dimensions.y.0,
-     //   win_dimensions.x.1, win_dimensions.y.1);
 
-    // generate initial windows. TODO move initial generation into self-contained
-    // function
+    // event loop
+
     Ok(0)
 }
 
@@ -146,3 +143,4 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
     }
     minwindef::TRUE
 }
+

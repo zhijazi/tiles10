@@ -86,6 +86,7 @@ pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, 
 }
 
 fn resize_children<T: std::clone::Clone>(root: &mut Node<T>) {
+    // TODO can do let (left,right) = match root.node_type ... 
     match root.node_type {
         NodeType::Separator(Orientation::Horizontal) => {
             let (left, right) = tile_horizontal(&root.dim);
