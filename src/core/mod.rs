@@ -1,6 +1,6 @@
 extern crate winapi;
 
-use winapi::{ um::{winuser, dwmapi}, shared::{windef, minwindef, winerror}, ctypes };
+use winapi::{ um::{winuser, dwmapi, winnt}, shared::{windef, minwindef, winerror}, ctypes };
 use crate::tile;
 
 #[derive(Debug, Clone)]
@@ -8,16 +8,48 @@ pub struct Window {
     hwnd: windef::HWND
 }
 
+// :(, There doesn't appear to be a way to pass context/data into SetWinEvenHook or
+// SetWinEvenHookEx, and I don't know enough about Rust or the Windows API to know what
+// the optimal way of retrieving this data should be. Hopefully, when I find out it won't
+// be expensive to fix... 
+static mut WINDOWS: Vec<Window> = vec![];
+
 pub fn run() -> Result<i32, std::io::Error> {
-    let open_windows = get_initial_windows();
+    let init_windows = get_initial_windows();
     let win_dimensions = get_window_dimensions();
 
-    let root = tile_existing_windows(open_windows, win_dimensions);
+    let root = tile_existing_windows(init_windows, win_dimensions);
     redraw_nodes(&root);
+    println!("existing windows: {:?}", root);
 
-    // event loop
+    hook_and_loop(root);
 
     Ok(0)
+}
+
+fn hook_and_loop(mut root: tile::Node<Window>) {
+    unsafe {
+        winuser::SetWinEventHook(winuser::EVENT_OBJECT_CREATE, winuser::EVENT_OBJECT_DESTROY,
+            std::ptr::null_mut(), Some(window_event_hook), 0, 0, winuser::WINEVENT_OUTOFCONTEXT);
+
+       let mut msg: winuser::MSG = Default::default();
+
+       loop {
+           let msg_exists = winuser::PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, winuser::PM_REMOVE);
+           if msg_exists == minwindef::TRUE {
+               winuser::DispatchMessageW(&mut msg);
+           }
+
+           while !WINDOWS.is_empty() {
+               // instead of calling redrawnodes every time, have tile::tile return a reference to
+               // the seperator so it could just redraw those?
+               println!("{:?}", root);
+               tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
+               redraw_nodes(&root);
+               println!("{:?}", root);
+           }
+       }
+    }
 }
 
 fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> tile::Node<Window> {
@@ -46,6 +78,7 @@ fn redraw_nodes(root: &tile::Node<Window>) {
             }
         },
         tile::NodeType::Window(win) => {
+            show_window(win.hwnd);
             set_window_pos(win.hwnd, root.dim.x.0, root.dim.y.0,
                 root.dim.x.1, root.dim.y.1);
         },
@@ -105,6 +138,12 @@ fn set_window_pos(hwnd: windef::HWND, x: i32, y: i32, cx: i32, cy: i32) -> bool 
     true
 }
 
+fn show_window(hwnd: windef::HWND) {
+    unsafe {
+        winuser::ShowWindow(hwnd, winuser::SW_RESTORE);
+    }
+}
+
 // TODO does this need to be a separate function?
 unsafe extern "system"
 fn get_primary_monitor() -> windef::HMONITOR {
@@ -144,3 +183,48 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
     minwindef::TRUE
 }
 
+unsafe extern "system"
+fn window_event_hook(_event_hook: windef::HWINEVENTHOOK, event: minwindef::DWORD, hwnd: windef::HWND, id_obj: winnt::LONG, id_child: winnt::LONG, _id_event_thread: minwindef::DWORD, _time: minwindef::DWORD) {
+    use winapi::um::winuser::{ EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, OBJID_WINDOW, INDEXID_CONTAINER, WS_BORDER, GetClientRect, GetWindowTextLengthW, GetWindowTextW, GetWindowLongW, GWL_STYLE };
+
+    // TODO this is a very aggressive filter. Find a better way to do this later
+    if !((event == EVENT_OBJECT_CREATE || event == EVENT_OBJECT_DESTROY) && id_obj == OBJID_WINDOW && id_child == INDEXID_CONTAINER) {
+        return;
+    }
+
+    let win_len = GetWindowTextLengthW(hwnd) + 1;
+    if win_len - 1 == 0 {
+        return;
+    }
+
+    let mut v: Vec<u16> = Vec::with_capacity(win_len as usize);
+    let read_len = GetWindowTextW(hwnd, v.as_mut_ptr(), win_len);
+    if read_len == 0 {
+        return;
+    }
+
+    let lstyle = GetWindowLongW(hwnd, GWL_STYLE);
+    if lstyle == 0 {
+        return;
+    }
+
+    let mut r_area: windef::RECT = Default::default();
+    if GetClientRect(hwnd, &mut r_area) == minwindef::FALSE {
+        return;
+    }
+
+    if (lstyle & (WS_BORDER as i32)) != WS_BORDER as i32 {
+        return;
+    }
+
+    if event == EVENT_OBJECT_CREATE {
+        println!("object created");
+        WINDOWS.push(Window { hwnd });
+    }
+
+    if event == EVENT_OBJECT_DESTROY {
+        v.set_len((read_len) as usize);
+        let window_name = String::from_utf16_lossy(&v);
+        println!("{}", window_name);
+    }
+}
