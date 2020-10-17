@@ -43,10 +43,8 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
            while !WINDOWS.is_empty() {
                // instead of calling redrawnodes every time, have tile::tile return a reference to
                // the seperator so it could just redraw those?
-               println!("{:?}", root);
                tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
                redraw_nodes(&root);
-               println!("{:?}", root);
            }
        }
     }
