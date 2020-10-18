@@ -3,7 +3,7 @@ extern crate winapi;
 use winapi::{ um::{winuser, dwmapi, winnt}, shared::{windef, minwindef, winerror}, ctypes };
 use crate::tile;
 
-#[derive(Debug, Clone)]
+#[derive(Copy, Debug, Clone, PartialEq)]
 pub struct Window {
     hwnd: windef::HWND
 }
@@ -13,6 +13,7 @@ pub struct Window {
 // the optimal way of retrieving this data should be. Hopefully, when I find out it won't
 // be expensive to fix... 
 static mut WINDOWS: Vec<Window> = vec![];
+static mut WIN_CLOSED: Vec<Window> = vec![];
 
 pub fn run() -> Result<i32, std::io::Error> {
     let init_windows = get_initial_windows();
@@ -20,7 +21,6 @@ pub fn run() -> Result<i32, std::io::Error> {
 
     let root = tile_existing_windows(init_windows, win_dimensions);
     redraw_nodes(&root);
-    println!("existing windows: {:?}", root);
 
     hook_and_loop(root);
 
@@ -44,6 +44,12 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
                // instead of calling redrawnodes every time, have tile::tile return a reference to
                // the seperator so it could just redraw those?
                tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
+               redraw_nodes(&root);
+           }
+
+           while !WIN_CLOSED.is_empty() {
+               let window = WIN_CLOSED.remove(0);
+               tile::untile::<Window>(&mut root, &window);
                redraw_nodes(&root);
            }
        }
@@ -216,13 +222,10 @@ fn window_event_hook(_event_hook: windef::HWINEVENTHOOK, event: minwindef::DWORD
     }
 
     if event == EVENT_OBJECT_CREATE {
-        println!("object created");
         WINDOWS.push(Window { hwnd });
     }
 
     if event == EVENT_OBJECT_DESTROY {
-        v.set_len((read_len) as usize);
-        let window_name = String::from_utf16_lossy(&v);
-        println!("{}", window_name);
+        WIN_CLOSED.push(Window { hwnd });
     }
 }

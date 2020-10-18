@@ -1,10 +1,10 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Orientation {
     Horizontal,
     Vertical
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum NodeType<T> {
     Separator(Orientation),
     Empty,
@@ -13,7 +13,7 @@ pub enum NodeType<T> {
 
 // TODO: Arbitrary number of children?
 #[derive(Debug, Clone)]
-pub struct Node<T: std::clone::Clone> {
+pub struct Node<T> {
     pub node_type: NodeType<T>,
     pub dim: Dimensions,
     pub left: Option<Box<Node<T>>>,
@@ -48,6 +48,41 @@ pub fn tile_horizontal(dim: &Dimensions) -> (Dimensions, Dimensions) {
         y: (dim.y.0 + dim.y.1 / 2, dim.y.1 / 2)
     };
     (top_dim, bottom_dim)
+}
+
+pub fn untile<T: std::fmt::Debug + Copy + PartialEq>(mut root: &mut Node<T>, window_val: &T) {
+    match &root.node_type {
+        NodeType::Window(_) => return,
+        NodeType::Empty => return, // for now, assume Empty cannot have children
+        NodeType::Separator(_) => {
+            if let NodeType::Window(child) = &root.left.as_ref().unwrap().node_type {
+                if child == window_val {
+                    // left child is deleted window
+                    root.node_type = root.right.as_mut().unwrap().node_type;
+                    let promote_win = root.right.as_ref().unwrap().clone();
+                    root.left = promote_win.left.clone();
+                    root.right = promote_win.right.clone();
+                    resize_children(root);
+                    return;
+                }
+            } 
+
+            if let NodeType::Window(child) = &root.right.as_ref().unwrap().node_type {
+                if child == window_val {
+                    // right child is deleted window
+                    root.node_type = root.left.as_mut().unwrap().node_type;
+                    let promote_win = root.left.as_ref().unwrap().clone();
+                    root.left = promote_win.left.clone();
+                    root.right = promote_win.right.clone();
+                    resize_children(root);
+                    return;
+                }
+            }
+
+            untile(&mut root.left.as_mut().unwrap(), &window_val);
+            untile(&mut root.right.as_mut().unwrap(), &window_val);
+        }
+    }
 }
 
 pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, new_window: T) {
