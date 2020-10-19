@@ -59,9 +59,7 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
 fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> tile::Node<Window> {
     let mut root: tile::Node<Window> = tile::Node {
         node_type: tile::NodeType::Empty,
-        dim: dim,
-        left: None,
-        right: None
+        dim: dim
     };
 
     while !windows.is_empty() {
@@ -73,13 +71,9 @@ fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> til
 
 fn redraw_nodes(root: &tile::Node<Window>) {
     match &root.node_type {
-        tile::NodeType::Separator(_) => {
-            if let Some(win) = root.left.as_ref() {
-                redraw_nodes(win);
-            }
-            if let Some(win) = root.right.as_ref() {
-                redraw_nodes(win);
-            }
+        tile::NodeType::Separator(_, left_child, right_child) => {
+            redraw_nodes(left_child);
+            redraw_nodes(right_child);
         },
         tile::NodeType::Window(win) => {
             show_window(win.hwnd);

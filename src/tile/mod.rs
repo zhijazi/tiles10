@@ -4,9 +4,9 @@ pub enum Orientation {
     Vertical
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum NodeType<T> {
-    Separator(Orientation),
+    Separator(Orientation, Box<Node<T>>, Box<Node<T>>),
     Empty,
     Window(T)
 }
@@ -16,8 +16,6 @@ pub enum NodeType<T> {
 pub struct Node<T> {
     pub node_type: NodeType<T>,
     pub dim: Dimensions,
-    pub left: Option<Box<Node<T>>>,
-    pub right: Option<Box<Node<T>>>
 }
 
 #[derive(Debug, Clone)]
@@ -51,36 +49,30 @@ pub fn tile_horizontal(dim: &Dimensions) -> (Dimensions, Dimensions) {
 }
 
 pub fn untile<T: std::fmt::Debug + Copy + PartialEq>(mut root: &mut Node<T>, window_val: &T) {
-    match &root.node_type {
+    match &mut root.node_type {
         NodeType::Window(_) => return,
         NodeType::Empty => return, // for now, assume Empty cannot have children
-        NodeType::Separator(_) => {
-            if let NodeType::Window(child) = &root.left.as_ref().unwrap().node_type {
+        NodeType::Separator(_, left_child, right_child) => {
+            if let NodeType::Window(child) = &left_child.node_type {
                 if child == window_val {
                     // left child is deleted window
-                    root.node_type = root.right.as_mut().unwrap().node_type;
-                    let promote_win = root.right.as_ref().unwrap().clone();
-                    root.left = promote_win.left.clone();
-                    root.right = promote_win.right.clone();
+                    root.node_type = right_child.node_type.clone();
                     resize_children(root);
                     return;
                 }
             } 
 
-            if let NodeType::Window(child) = &root.right.as_ref().unwrap().node_type {
+            if let NodeType::Window(child) = &right_child.node_type {
                 if child == window_val {
                     // right child is deleted window
-                    root.node_type = root.left.as_mut().unwrap().node_type;
-                    let promote_win = root.left.as_ref().unwrap().clone();
-                    root.left = promote_win.left.clone();
-                    root.right = promote_win.right.clone();
+                    root.node_type = left_child.node_type.clone();
                     resize_children(root);
                     return;
                 }
             }
 
-            untile(&mut root.left.as_mut().unwrap(), &window_val);
-            untile(&mut root.right.as_mut().unwrap(), &window_val);
+            untile(left_child, &window_val);
+            untile(right_child, &window_val);
         }
     }
 }
@@ -103,54 +95,32 @@ pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, 
     let new_win = Node {
         node_type: NodeType::Window(new_window),
         dim: right_dim,
-        left: None,
-        right: None
     };
 
-    root.node_type = NodeType::Separator(orientation);
-    root.left = Some(Box::new(tmp));
-    root.right = Some(Box::new(new_win));
-
-    if let Some(left_child) = &mut root.left {
+    root.node_type = NodeType::Separator(orientation, Box::new(tmp), Box::new(new_win));
+    if let NodeType::Separator(_, left_child, right_child) = &mut root.node_type {
         resize_children(left_child);
-    }
-
-    if let Some(right_child) = &mut root.right {
         resize_children(right_child);
     }
 }
 
 fn resize_children<T: std::clone::Clone>(root: &mut Node<T>) {
     // TODO can do let (left,right) = match root.node_type ... 
-    match root.node_type {
-        NodeType::Separator(Orientation::Horizontal) => {
+    match &mut root.node_type {
+        NodeType::Separator(Orientation::Horizontal, left_child, right_child) => {
             let (left, right) = tile_horizontal(&root.dim);
-
-            if let Some(left_win) = &mut root.left {
-                left_win.dim = left;
-            }
-            if let Some(right_win) = &mut root.right {
-                right_win.dim = right;
-            }
+            left_child.dim = left;
+            right_child.dim = right;
+            resize_children::<T>(left_child);
+            resize_children::<T>(right_child);
         },
-        NodeType::Separator(Orientation::Vertical) => {
+        NodeType::Separator(Orientation::Vertical, left_child, right_child) => {
             let (left, right) = tile_vertical(&root.dim);
-            if let Some(left_win) = &mut root.left {
-                left_win.dim = left;
-            }
-
-            if let Some(right_win) = &mut root.right {
-                right_win.dim = right;
-            }
+            left_child.dim = left;
+            right_child.dim = right;
+            resize_children::<T>(left_child);
+            resize_children::<T>(right_child);
         }
         _ => return
-    }
-
-    if let Some(left_node) = &mut root.left {
-          resize_children::<T>(left_node);
-    }
-
-    if let Some(right_node) = &mut root.right {
-          resize_children::<T>(right_node);
     }
 }
