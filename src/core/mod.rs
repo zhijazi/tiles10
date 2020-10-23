@@ -14,6 +14,8 @@ pub struct Window {
 // be expensive to fix... 
 static mut WINDOWS: Vec<Window> = vec![];
 static mut WIN_CLOSED: Vec<Window> = vec![];
+static mut FOCUSED_WINDOW: Option<Window> = None;
+static mut PREV_WINDOW: Option<Window> = None;
 
 pub fn run() -> Result<i32, std::io::Error> {
     let init_windows = get_initial_windows();
@@ -32,6 +34,9 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
         winuser::SetWinEventHook(winuser::EVENT_OBJECT_CREATE, winuser::EVENT_OBJECT_DESTROY,
             std::ptr::null_mut(), Some(window_event_hook), 0, 0, winuser::WINEVENT_OUTOFCONTEXT);
 
+        winuser::SetWinEventHook(winuser::EVENT_OBJECT_FOCUS, winuser::EVENT_OBJECT_FOCUS,
+            std::ptr::null_mut(), Some(focus_changed), 0, 0, winuser::WINEVENT_OUTOFCONTEXT);
+
        let mut msg: winuser::MSG = Default::default();
 
        loop {
@@ -43,7 +48,16 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
            while !WINDOWS.is_empty() {
                // instead of calling redrawnodes every time, have tile::tile return a reference to
                // the seperator so it could just redraw those?
-               tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
+               if let Some(win) = PREV_WINDOW {
+                   let focused_node = tile::find_node::<Window>(&mut root, win);
+                   if let Some(last_focused) = focused_node {
+                       tile::tile::<Window>(last_focused, tile::Orientation::Vertical, WINDOWS.remove(0));
+                   } else {
+                       tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
+                   }
+               } else {
+                   tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
+               }
                redraw_nodes(&root);
            }
 
@@ -170,8 +184,7 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
         if cloaked != dwmapi::DWM_CLOAKED_SHELL && cloaked != dwmapi::DWM_CLOAKED_APP && cloaked != dwmapi::DWM_CLOAKED_INHERITED {
             win_title_vec.set_len((res_len) as usize);
             let window_name = String::from_utf16_lossy(&win_title_vec);
-            if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") && !window_name.contains("Windows PowerShell") {
-                println!("{}", window_name);
+            if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") {
                 let handles_ptr = l_param as *mut Vec<Window>;
                 let handles: &mut Vec<Window> = &mut *handles_ptr;
                 handles.push(Window { hwnd });
@@ -185,7 +198,9 @@ unsafe extern "system"
 fn window_event_hook(_event_hook: windef::HWINEVENTHOOK, event: minwindef::DWORD, hwnd: windef::HWND, id_obj: winnt::LONG, id_child: winnt::LONG, _id_event_thread: minwindef::DWORD, _time: minwindef::DWORD) {
     use winapi::um::winuser::{ EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, OBJID_WINDOW, INDEXID_CONTAINER, WS_BORDER, GetClientRect, GetWindowTextLengthW, GetWindowTextW, GetWindowLongW, GWL_STYLE };
 
-    // TODO this is a very aggressive filter. Find a better way to do this later
+    // TODO this is a very aggressive filter, different parts were plucked from different
+    // suggestions online about how to get random hidden windows from appearing. Find a better way
+    // to do this in the future, hopefully.
     if !((event == EVENT_OBJECT_CREATE || event == EVENT_OBJECT_DESTROY) && id_obj == OBJID_WINDOW && id_child == INDEXID_CONTAINER) {
         return;
     }
@@ -223,3 +238,10 @@ fn window_event_hook(_event_hook: windef::HWINEVENTHOOK, event: minwindef::DWORD
         WIN_CLOSED.push(Window { hwnd });
     }
 }
+
+unsafe extern "system"
+fn focus_changed(_event_hook: windef::HWINEVENTHOOK, _event: minwindef::DWORD, hwnd: windef::HWND, _id_obj: winnt::LONG, _id_child: winnt::LONG, _id_event_thread: minwindef::DWORD, _time: minwindef::DWORD) {
+    PREV_WINDOW = FOCUSED_WINDOW;
+    FOCUSED_WINDOW = Some(Window { hwnd });
+}
+

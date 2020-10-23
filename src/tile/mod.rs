@@ -124,3 +124,23 @@ fn resize_children<T: std::clone::Clone>(root: &mut Node<T>) {
         _ => return
     }
 }
+
+pub fn find_node<T: Clone + PartialEq>(root: &mut Node<T>, window: T) -> Option<&mut Node<T>> {
+    if let NodeType::Window(win) = &root.node_type {
+        if win == &window {
+            return Some(root);
+        } else {
+            return None;
+        }
+    }
+
+    if let NodeType::Separator(_, left_win, right_win) = &mut root.node_type {
+        let mut node = find_node::<T>(left_win, window.clone());
+        if let None = &mut node {
+            node = find_node::<T>(right_win, window.clone());
+        }
+        return node;
+    }
+
+    return None;
+}
