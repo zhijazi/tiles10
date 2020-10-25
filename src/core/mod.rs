@@ -8,14 +8,13 @@ pub struct Window {
     hwnd: windef::HWND
 }
 
-// :(, There doesn't appear to be a way to pass context/data into SetWinEvenHook or
-// SetWinEvenHookEx, and I don't know enough about Rust or the Windows API to know what
-// the optimal way of retrieving this data should be. Hopefully, when I find out it won't
-// be expensive to fix... 
-static mut WINDOWS: Vec<Window> = vec![];
-static mut WIN_CLOSED: Vec<Window> = vec![];
-static mut FOCUSED_WINDOW: Option<Window> = None;
-static mut PREV_WINDOW: Option<Window> = None;
+pub enum WindowEvent {
+    Created(Window),
+    Destroyed(Window),
+    FocusChanged(Window)
+}
+
+static mut WIN_EVENT: Option<WindowEvent> = None;
 
 pub fn run() -> Result<i32, std::io::Error> {
     let init_windows = get_initial_windows();
@@ -39,32 +38,35 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
 
        let mut msg: winuser::MSG = Default::default();
 
+       let mut prev_window: Window = Window { hwnd: winuser::GetActiveWindow() };
+       let mut current_focus: Window = Window { hwnd: winuser::GetActiveWindow() };
+
        loop {
            let msg_exists = winuser::PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, winuser::PM_REMOVE);
            if msg_exists == minwindef::TRUE {
                winuser::DispatchMessageW(&mut msg);
            }
 
-           while !WINDOWS.is_empty() {
-               // instead of calling redrawnodes every time, have tile::tile return a reference to
-               // the seperator so it could just redraw those?
-               if let Some(win) = PREV_WINDOW {
-                   let focused_node = tile::find_node::<Window>(&mut root, win);
-                   if let Some(last_focused) = focused_node {
-                       tile::tile::<Window>(last_focused, tile::Orientation::Vertical, WINDOWS.remove(0));
-                   } else {
-                       tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
+           if let Some(event) = WIN_EVENT.take() {
+               match event {
+                   WindowEvent::Created(window) => {
+                       let focused_node = tile::find_node::<Window>(&mut root, prev_window);
+                       if let Some(last_focused) = focused_node {
+                           tile::tile::<Window>(last_focused, tile::Orientation::Vertical, window);
+                       } else {
+                           tile::tile::<Window>(&mut root, tile::Orientation::Vertical, window);
+                       }
+                       redraw_nodes(&root);
+                   },
+                   WindowEvent::Destroyed(window) => {
+                       tile::untile::<Window>(&mut root, &window);
+                       redraw_nodes(&root);
+                   },
+                   WindowEvent::FocusChanged(window) => {
+                      prev_window = current_focus;
+                      current_focus = window;
                    }
-               } else {
-                   tile::tile::<Window>(&mut root, tile::Orientation::Vertical, WINDOWS.remove(0));
                }
-               redraw_nodes(&root);
-           }
-
-           while !WIN_CLOSED.is_empty() {
-               let window = WIN_CLOSED.remove(0);
-               tile::untile::<Window>(&mut root, &window);
-               redraw_nodes(&root);
            }
        }
     }
@@ -231,17 +233,16 @@ fn window_event_hook(_event_hook: windef::HWINEVENTHOOK, event: minwindef::DWORD
     }
 
     if event == EVENT_OBJECT_CREATE {
-        WINDOWS.push(Window { hwnd });
+        WIN_EVENT = Some(WindowEvent::Created(Window { hwnd }));
     }
 
     if event == EVENT_OBJECT_DESTROY {
-        WIN_CLOSED.push(Window { hwnd });
+        WIN_EVENT = Some(WindowEvent::Destroyed(Window { hwnd }));
     }
 }
 
 unsafe extern "system"
 fn focus_changed(_event_hook: windef::HWINEVENTHOOK, _event: minwindef::DWORD, hwnd: windef::HWND, _id_obj: winnt::LONG, _id_child: winnt::LONG, _id_event_thread: minwindef::DWORD, _time: minwindef::DWORD) {
-    PREV_WINDOW = FOCUSED_WINDOW;
-    FOCUSED_WINDOW = Some(Window { hwnd });
+    WIN_EVENT = Some(WindowEvent::FocusChanged(Window { hwnd }));
 }
 
