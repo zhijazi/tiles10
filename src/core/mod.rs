@@ -3,15 +3,10 @@ extern crate winapi;
 use winapi::{ um::{winuser, dwmapi, winnt}, shared::{windef, minwindef, winerror}, ctypes };
 use crate::tile;
 
-#[derive(Copy, Debug, Clone, PartialEq)]
-pub struct Window {
-    hwnd: windef::HWND
-}
-
 pub enum WindowEvent {
-    Created(Window),
-    Destroyed(Window),
-    FocusChanged(Window)
+    Created(windef::HWND),
+    Destroyed(windef::HWND),
+    FocusChanged(windef::HWND)
 }
 
 static mut WIN_EVENT: Option<WindowEvent> = None;
@@ -28,7 +23,7 @@ pub fn run() -> Result<i32, std::io::Error> {
     Ok(0)
 }
 
-fn hook_and_loop(mut root: tile::Node<Window>) {
+fn hook_and_loop(mut root: tile::Node<windef::HWND>) {
     unsafe {
         winuser::SetWinEventHook(winuser::EVENT_OBJECT_CREATE, winuser::EVENT_OBJECT_DESTROY,
             std::ptr::null_mut(), Some(window_event_hook), 0, 0, winuser::WINEVENT_OUTOFCONTEXT);
@@ -38,8 +33,8 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
 
        let mut msg: winuser::MSG = Default::default();
 
-       let mut prev_window: Window = Window { hwnd: winuser::GetActiveWindow() };
-       let mut current_focus: Window = Window { hwnd: winuser::GetActiveWindow() };
+       let mut prev_window = winuser::GetActiveWindow();
+       let mut current_focus = winuser::GetActiveWindow();
 
        loop {
            let msg_exists = winuser::PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, winuser::PM_REMOVE);
@@ -50,16 +45,16 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
            if let Some(event) = WIN_EVENT.take() {
                match event {
                    WindowEvent::Created(window) => {
-                       let focused_node = tile::find_node::<Window>(&mut root, prev_window);
+                       let focused_node = tile::find_node::<windef::HWND>(&mut root, prev_window);
                        if let Some(last_focused) = focused_node {
-                           tile::tile::<Window>(last_focused, tile::Orientation::Vertical, window);
+                           tile::tile::<windef::HWND>(last_focused, tile::Orientation::Vertical, window);
                        } else {
-                           tile::tile::<Window>(&mut root, tile::Orientation::Vertical, window);
+                           tile::tile::<windef::HWND>(&mut root, tile::Orientation::Vertical, window);
                        }
                        redraw_nodes(&root);
                    },
                    WindowEvent::Destroyed(window) => {
-                       tile::untile::<Window>(&mut root, &window);
+                       tile::untile::<windef::HWND>(&mut root, &window);
                        redraw_nodes(&root);
                    },
                    WindowEvent::FocusChanged(window) => {
@@ -72,36 +67,36 @@ fn hook_and_loop(mut root: tile::Node<Window>) {
     }
 }
 
-fn tile_existing_windows(mut windows: Vec<Window>, dim: tile::Dimensions) -> tile::Node<Window> {
-    let mut root: tile::Node<Window> = tile::Node {
+fn tile_existing_windows(mut windows: Vec<windef::HWND>, dim: tile::Dimensions) -> tile::Node<windef::HWND> {
+    let mut root: tile::Node<windef::HWND> = tile::Node {
         node_type: tile::NodeType::Empty,
         dim: dim
     };
 
     while !windows.is_empty() {
-        tile::tile::<Window>(&mut root, tile::Orientation::Horizontal, windows.remove(0));
+        tile::tile::<windef::HWND>(&mut root, tile::Orientation::Horizontal, windows.remove(0));
     }
 
     root
 }
 
-fn redraw_nodes(root: &tile::Node<Window>) {
+fn redraw_nodes(root: &tile::Node<windef::HWND>) {
     match &root.node_type {
         tile::NodeType::Separator(_, left_child, right_child) => {
             redraw_nodes(left_child);
             redraw_nodes(right_child);
         },
-        tile::NodeType::Window(win) => {
-            show_window(win.hwnd);
-            set_window_pos(win.hwnd, root.dim.x.0, root.dim.y.0,
+        tile::NodeType::Window(hwnd) => {
+            show_window(hwnd.clone());
+            set_window_pos(hwnd.clone(), root.dim.x.0, root.dim.y.0,
                 root.dim.x.1, root.dim.y.1);
         },
         tile::NodeType::Empty => return
     }
 }
 
-fn get_initial_windows() -> Vec<Window> {
-    let win_handles: Vec<Window> = Vec::new();
+fn get_initial_windows() -> Vec<windef::HWND> {
+    let win_handles: Vec<windef::HWND> = Vec::new();
     unsafe {
         let res = winuser::EnumWindows(Some(enum_windows), &win_handles as *const _ as minwindef::LPARAM);
         if res == minwindef::FALSE {
@@ -187,9 +182,9 @@ fn enum_windows(hwnd: windef::HWND, l_param: minwindef::LPARAM) -> minwindef::BO
             win_title_vec.set_len((res_len) as usize);
             let window_name = String::from_utf16_lossy(&win_title_vec);
             if !window_name.contains("NVIDIA GeForce Overlay") && !window_name.contains("Program Manager") {
-                let handles_ptr = l_param as *mut Vec<Window>;
-                let handles: &mut Vec<Window> = &mut *handles_ptr;
-                handles.push(Window { hwnd });
+                let handles_ptr = l_param as *mut Vec<windef::HWND>;
+                let handles: &mut Vec<windef::HWND> = &mut *handles_ptr;
+                handles.push(hwnd);
             }
         }
     }
@@ -233,16 +228,16 @@ fn window_event_hook(_event_hook: windef::HWINEVENTHOOK, event: minwindef::DWORD
     }
 
     if event == EVENT_OBJECT_CREATE {
-        WIN_EVENT = Some(WindowEvent::Created(Window { hwnd }));
+        WIN_EVENT = Some(WindowEvent::Created(hwnd));
     }
 
     if event == EVENT_OBJECT_DESTROY {
-        WIN_EVENT = Some(WindowEvent::Destroyed(Window { hwnd }));
+        WIN_EVENT = Some(WindowEvent::Destroyed(hwnd));
     }
 }
 
 unsafe extern "system"
 fn focus_changed(_event_hook: windef::HWINEVENTHOOK, _event: minwindef::DWORD, hwnd: windef::HWND, _id_obj: winnt::LONG, _id_child: winnt::LONG, _id_event_thread: minwindef::DWORD, _time: minwindef::DWORD) {
-    WIN_EVENT = Some(WindowEvent::FocusChanged(Window { hwnd }));
+    WIN_EVENT = Some(WindowEvent::FocusChanged(hwnd));
 }
 
