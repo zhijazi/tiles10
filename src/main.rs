@@ -1,5 +1,6 @@
 pub mod core;
 pub mod tile;
+pub mod internal;
 
 fn main() {
     run();

@@ -1,1 +1,3 @@
-pub use win;
+pub mod win;
+
+pub use win::*;
