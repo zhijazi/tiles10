@@ -18,7 +18,7 @@ pub struct Node<T> {
     pub dim: Dimensions,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Dimensions {
     pub x: (i32, i32),
     pub y: (i32, i32),
@@ -30,7 +30,7 @@ pub fn tile_vertical(dim: &Dimensions) -> (Dimensions, Dimensions) {
         y: (dim.y.0, dim.y.1),
     };
     let right_dim = Dimensions {
-        x: (dim.x.0 + dim.x.1 / 2, dim.x.1 / 2),
+        x: (dim.x.0 + dim.x.1 / 2 + 1, dim.x.1 / 2),
         y: (dim.y.0, dim.y.1),
     };
     (left_dim, right_dim)
@@ -43,12 +43,12 @@ pub fn tile_horizontal(dim: &Dimensions) -> (Dimensions, Dimensions) {
     };
     let bottom_dim = Dimensions {
         x: (dim.x.0, dim.x.1),
-        y: (dim.y.0 + dim.y.1 / 2, dim.y.1 / 2),
+        y: (dim.y.0 + dim.y.1 / 2 + 1, dim.y.1 / 2),
     };
     (top_dim, bottom_dim)
 }
 
-pub fn untile<T: std::fmt::Debug + Copy + PartialEq>(mut root: &mut Node<T>, window_val: &T) {
+pub fn untile<T: Copy + PartialEq>(mut root: &mut Node<T>, window_val: &T) {
     match &mut root.node_type {
         NodeType::Window(_) => return,
         NodeType::Empty => return, // for now, assume Empty cannot have children
@@ -77,7 +77,7 @@ pub fn untile<T: std::fmt::Debug + Copy + PartialEq>(mut root: &mut Node<T>, win
     }
 }
 
-pub fn tile<T: std::clone::Clone>(root: &mut Node<T>, orientation: Orientation, new_window: T) {
+pub fn tile<T: Clone>(root: &mut Node<T>, orientation: Orientation, new_window: T) {
     if let NodeType::Empty = root.node_type {
         root.node_type = NodeType::Window(new_window);
         return;
@@ -143,4 +143,105 @@ pub fn find_node<T: Clone + PartialEq>(root: &mut Node<T>, window: T) -> Option<
     }
 
     return None;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn tile_vertical_splits_dimensions_in_half() {
+        let base_dim = Dimensions {
+            x: (0, 1920),
+            y: (0, 1080)
+        };
+
+        let (left_dim, right_dim) = tile_vertical(&base_dim);
+
+        assert_eq!((0, 960), left_dim.x);
+        assert_eq!((0, 1080), left_dim.y);
+        assert_eq!((961, 960), right_dim.x);
+        assert_eq!((0, 1080), right_dim.y);
+    }
+
+    #[test]
+    fn tile_horizontal_splits_dimensions_in_half() {
+        let base_dim = Dimensions {
+            x: (0, 1920),
+            y: (0, 1080)
+        };
+
+        let (top_dim, bot_dim) = tile_horizontal(&base_dim);
+
+        assert_eq!((0, 1920), top_dim.x);
+        assert_eq!((0, 540), top_dim.y);
+        assert_eq!((0, 1920), bot_dim.x);
+        assert_eq!((541, 540), bot_dim.y);
+    }
+
+    #[test]
+    fn untile_right_leaf_should_make_left_leaf_root() {
+        let left_leaf: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 960),
+                y: (0, 1080)
+            }
+        };
+        let right_leaf: Node<i32> = Node {
+            node_type: NodeType::Window(2),
+            dim: Dimensions {
+                x: (961, 960),
+                y: (0, 1080)
+            }
+        };
+
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Separator(Orientation::Vertical, Box::new(left_leaf), Box::new(right_leaf)),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        untile(&mut root, &2);
+        if let NodeType::Window(val) = root.node_type {
+            assert_eq!(val, 1);
+        } else {
+            panic!("Root is not a Window type");
+        }
+    }
+
+    #[test]
+    fn untile_left_leaf_should_make_right_leaf_root() {
+        let left_leaf: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 960),
+                y: (0, 1080)
+            }
+        };
+        let right_leaf: Node<i32> = Node {
+            node_type: NodeType::Window(2),
+            dim: Dimensions {
+                x: (961, 960),
+                y: (0, 1080)
+            }
+        };
+
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Separator(Orientation::Vertical, Box::new(left_leaf), Box::new(right_leaf)),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        untile(&mut root, &1);
+        if let NodeType::Window(val) = root.node_type {
+            assert_eq!(val, 2);
+        } else {
+            panic!("Root is not a Window type");
+        }
+    }
 }
