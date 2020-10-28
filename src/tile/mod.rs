@@ -360,4 +360,46 @@ mod test {
             panic!("Horizontal separator is not the new root of the subtree.");
         }
     }
+
+    #[test]
+    fn resize_children_should_recalculate_new_children_dimensions_from_root() {
+        let left_child: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+        let right_child: Node<i32> = Node {
+            node_type: NodeType::Window(2),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Separator(Orientation::Vertical, Box::new(left_child), Box::new(right_child)),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        resize_children(&mut root);
+
+        if let NodeType::Separator(_, left, right) = root.node_type {
+            assert_eq!(left.dim, Dimensions {
+                x: (0, 960),
+                y: (0, 1080)
+            });
+            assert_eq!(right.dim, Dimensions {
+                x: (961, 960),
+                y: (0, 1080)
+            });
+        } else {
+            panic!("Root node isn't seperator. This is probably a bug in the test code.");
+        }
+
+    }
 }
