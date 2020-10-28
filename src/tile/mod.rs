@@ -244,4 +244,120 @@ mod test {
             panic!("Root is not a Window type");
         }
     }
+
+    #[test]
+    fn tile_should_create_vertical_root_with_children() {
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 960),
+                y: (0, 1080)
+            }
+        };
+
+        tile(&mut root, Orientation::Vertical, 2);
+
+        if let NodeType::Separator(Orientation::Vertical, left, right) = root.node_type {
+            if let NodeType::Window(val) = left.node_type {
+                assert_eq!(val, 1);
+            } else {
+                panic!("left child is not type window");
+            }
+
+            if let NodeType::Window(val) = right.node_type {
+                assert_eq!(val, 2);
+            } else {
+                panic!("left child is not type window");
+            }
+        } else {
+            panic!("Vertical separator is not the new root of the subtree.");
+        }
+    }
+
+    #[test]
+    fn tile_should_create_vertical_root_with_dimensions_totaling_root() {
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        tile(&mut root, Orientation::Vertical, 2);
+
+        if let NodeType::Separator(Orientation::Vertical, left, right) = root.node_type {
+            let left_dim = left.dim;
+            assert_eq!(left_dim, Dimensions {
+                x: (0, 960),
+                y: (0, 1080)
+            });
+
+            let right_dim = right.dim;
+            assert_eq!(right_dim, Dimensions {
+                x: (961, 960),
+                y: (0, 1080)
+            });
+        } else {
+            panic!("Vertical separator is not the new root of the subtree.");
+        }
+    }
+
+    #[test]
+    fn tile_should_create_horizontal_root_with_children() {
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 960),
+                y: (0, 1080)
+            }
+        };
+
+        tile(&mut root, Orientation::Horizontal, 2);
+
+        if let NodeType::Separator(Orientation::Horizontal, left, right) = root.node_type {
+            if let NodeType::Window(val) = left.node_type {
+                assert_eq!(val, 1);
+            } else {
+                panic!("left child is not type window");
+            }
+
+            if let NodeType::Window(val) = right.node_type {
+                assert_eq!(val, 2);
+            } else {
+                panic!("left child is not type window");
+            }
+        } else {
+            panic!("Horizontal separator is not the new root of the subtree.");
+        }
+    }
+
+    #[test]
+    fn tile_should_create_horizontal_root_with_dimensions_totaling_root() {
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        tile(&mut root, Orientation::Horizontal, 2);
+
+        if let NodeType::Separator(Orientation::Horizontal, left, right) = root.node_type {
+            let left_dim = left.dim;
+            assert_eq!(left_dim, Dimensions {
+                x: (0, 1920),
+                y: (0, 540)
+            });
+
+            let right_dim = right.dim;
+            assert_eq!(right_dim, Dimensions {
+                x: (0, 1920),
+                y: (541, 540)
+            });
+        } else {
+            panic!("Horizontal separator is not the new root of the subtree.");
+        }
+    }
 }
