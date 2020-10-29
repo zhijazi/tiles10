@@ -400,6 +400,69 @@ mod test {
         } else {
             panic!("Root node isn't seperator. This is probably a bug in the test code.");
         }
+    }
 
+    #[test]
+    fn find_node_return_some_with_reference_to_correct_node() {
+        let left_child: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+        let right_child: Node<i32> = Node {
+            node_type: NodeType::Window(2),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Separator(Orientation::Horizontal, Box::new(left_child), Box::new(right_child)),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        let result = find_node(&mut root, 1);
+        if let Some(node) = result {
+            if let NodeType::Window(w) = node.node_type {
+                assert_eq!(w, 1);
+            } else {
+                panic!("Node returned is not a leaf node.");
+            }
+        } else {
+            panic!("Node where value = 1 was not found");
+        }
+    }
+
+    #[test]
+    fn find_node_on_nonexistant_node_should_return_none() {
+        let left_child: Node<i32> = Node {
+            node_type: NodeType::Window(1),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+        let right_child: Node<i32> = Node {
+            node_type: NodeType::Window(2),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+        let mut root: Node<i32> = Node {
+            node_type: NodeType::Separator(Orientation::Horizontal, Box::new(left_child), Box::new(right_child)),
+            dim: Dimensions {
+                x: (0, 1920),
+                y: (0, 1080)
+            }
+        };
+
+        let result = find_node(&mut root, 3);
+        assert!(result.is_none());
     }
 }
