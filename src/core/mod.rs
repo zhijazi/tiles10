@@ -18,21 +18,19 @@ pub fn run() -> Result<i32, std::io::Error> {
 
 fn hook_and_loop(mut root: tile::Node<windef::HWND>) {
     internal::create_hooks();
-    let mut prev_window = internal::get_active_window();
-    let mut current_focus = prev_window.clone();
+    let mut current_focus = internal::get_active_window();
     let mut orientation = tile::Orientation::Horizontal;
     loop {
         if let Some(event) = internal::send_message() {
             match event {
                 internal::WindowEvent::Created(window) => {
-                    tile_new_window(&mut root, window, prev_window, orientation);
+                    tile_new_window(&mut root, window, current_focus, orientation);
                 }
                 internal::WindowEvent::Destroyed(window) => {
                     untile_window(&mut root, window);
                 }
                 internal::WindowEvent::FocusChanged(window) => {
-                    prev_window = current_focus;
-                    current_focus = window;
+                    change_focused_window(&mut root, window, &mut current_focus);
                 }
                 internal::WindowEvent::OrientationChanged => {
                     if orientation == tile::Orientation::Horizontal {
@@ -66,6 +64,13 @@ fn tile_new_window(
 fn untile_window(mut root: &mut tile::Node<windef::HWND>, window: windef::HWND) {
     tile::untile(&mut root, &window);
     redraw_nodes(&root);
+}
+
+fn change_focused_window<'a>(mut root: &mut tile::Node<windef::HWND>, window: windef::HWND,
+    current: &'a mut windef::HWND) {
+    if let Some(_) = tile::find_node(&mut root, window) {
+        *current = window;
+    }
 }
 
 fn tile_existing_windows(
