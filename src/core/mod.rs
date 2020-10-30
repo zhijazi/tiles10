@@ -34,10 +34,10 @@ fn hook_and_loop(mut root: tile::Node<windef::HWND>) {
                 }
                 internal::WindowEvent::OrientationChanged => {
                     if orientation == tile::Orientation::Horizontal {
-                        println!("swapped oritentation to horizontal");
+                        println!("swapped oritentation to vertical");
                         orientation = tile::Orientation::Vertical
                     } else {
-                        println!("swapped oritentation to vertical");
+                        println!("swapped oritentation to horizontal");
                         orientation = tile::Orientation::Horizontal;
                     }
                 }
