@@ -9,6 +9,7 @@ pub enum WindowEvent {
     Created(windef::HWND),
     Destroyed(windef::HWND),
     FocusChanged(windef::HWND),
+    OrientationChanged
 }
 
 pub static mut WIN_EVENT: Option<WindowEvent> = None;
@@ -44,6 +45,15 @@ pub fn create_hooks() {
         if let None = focus_hook_res.as_ref() {
             panic!("Could not set focus changed hook. Aborting");
         }
+
+        if winuser::RegisterHotKey(std::ptr::null_mut(), 0, winuser::MOD_ALT as minwindef::UINT, 0x58) == minwindef::FALSE {
+            panic!("Could not register hot key");
+        }
+
+
+        if winuser::RegisterHotKey(std::ptr::null_mut(), 0, winuser::MOD_ALT as minwindef::UINT, 0x43) == minwindef::FALSE {
+            panic!("Could not register hot key");
+        }
     }
 }
 
@@ -53,6 +63,11 @@ pub fn send_message() -> Option<WindowEvent> {
         let msg_exists =
             winuser::PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, winuser::PM_REMOVE);
         if msg_exists == minwindef::TRUE {
+            match msg.message {
+                winuser::WM_HOTKEY => { WIN_EVENT = Some(WindowEvent::OrientationChanged) }
+                _ => { }
+            }
+
             winuser::TranslateMessage(&msg);
             winuser::DispatchMessageW(&mut msg);
         }

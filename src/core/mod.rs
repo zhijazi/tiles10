@@ -20,11 +20,12 @@ fn hook_and_loop(mut root: tile::Node<windef::HWND>) {
     internal::create_hooks();
     let mut prev_window = internal::get_active_window();
     let mut current_focus = prev_window.clone();
+    let mut orientation = tile::Orientation::Horizontal;
     loop {
         if let Some(event) = internal::send_message() {
             match event {
                 internal::WindowEvent::Created(window) => {
-                    tile_new_window(&mut root, window, prev_window);
+                    tile_new_window(&mut root, window, prev_window, orientation);
                 }
                 internal::WindowEvent::Destroyed(window) => {
                     untile_window(&mut root, window);
@@ -32,6 +33,15 @@ fn hook_and_loop(mut root: tile::Node<windef::HWND>) {
                 internal::WindowEvent::FocusChanged(window) => {
                     prev_window = current_focus;
                     current_focus = window;
+                }
+                internal::WindowEvent::OrientationChanged => {
+                    if orientation == tile::Orientation::Horizontal {
+                        println!("swapped oritentation to horizontal");
+                        orientation = tile::Orientation::Vertical
+                    } else {
+                        println!("swapped oritentation to vertical");
+                        orientation = tile::Orientation::Horizontal;
+                    }
                 }
             }
         }
@@ -42,12 +52,13 @@ fn tile_new_window(
     mut root: &mut tile::Node<windef::HWND>,
     window: windef::HWND,
     prev_window: windef::HWND,
+    orientation: tile::Orientation
 ) {
     let focused_node = tile::find_node(&mut root, prev_window);
     if let Some(last_focused) = focused_node {
-        tile::tile(last_focused, tile::Orientation::Vertical, window);
+        tile::tile(last_focused, orientation, window);
     } else {
-        tile::tile(&mut root, tile::Orientation::Vertical, window);
+        tile::tile(&mut root, orientation, window);
     }
     redraw_nodes(&root);
 }
